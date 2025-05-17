@@ -1,0 +1,153 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: .next/
+          retention-days: 1
+
+  deploy-vercel:
+    needs: build-and-test
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+
+      - name: Deploy to Vercel
+        run: |
+          vercel deploy --prod --token ${{ secrets.VERCEL_TOKEN }} --yes
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+  deploy-hetzner:
+    needs: build-and-test
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Deploy to Hetzner Cloud
+        uses: timdaub/hetzner-cloud-deploy-server-action@v2
+        with:
+          server-name: reva-web-${{ github.sha }}
+          server-image: ubuntu-22.04
+          server-location: nbg1
+          server-type: cx11
+          ssh-key-name: github-actions
+          hcloud-token: ${{ secrets.HETZNER_API_TOKEN }}
+          startup-timeout: 120
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          startup-script: |
+            #!/bin/bash
+            set -e
+            
+            # Update system
+            apt-get update
+            apt-get upgrade -y
+            
+            # Install Node.js and npm
+            curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+            apt-get install -y nodejs
+            
+            # Install PM2 for process management
+            npm install -g pm2
+            
+            # Create app directory
+            mkdir -p /app
+            cd /app
+            
+            # Clone repository
+            git clone https://github.com/${{ github.repository }}.git .
+            git checkout ${{ github.sha }}
+            
+            # Install dependencies and build
+            npm ci
+            npm run build
+            
+            # Start the application with PM2
+            pm2 start npm --name "reva-web" -- start
+            
+            # Save PM2 process list and configure to start on reboot
+            pm2 save
+            pm2 startup systemd
+            
+            # Install and configure Nginx
+            apt-get install -y nginx
+            
+            # Configure Nginx
+            cat > /etc/nginx/sites-available/default << 'EOL'
+            server {
+                listen 80;
+                server_name _;
+                
+                location / {
+                    proxy_pass http://localhost:3000;
+                    proxy_http_version 1.1;
+                    proxy_set_header Upgrade $http_upgrade;
+                    proxy_set_header Connection 'upgrade';
+                    proxy_set_header Host $host;
+                    proxy_cache_bypass $http_upgrade;
+                }
+            }
+            EOL
+            
+            # Restart Nginx
+            systemctl restart nginx
