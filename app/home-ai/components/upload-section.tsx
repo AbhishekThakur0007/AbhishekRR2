@@ -9,19 +9,21 @@ import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { GlassCard } from '@/app/home-ai/components/ui/glass-card';
 import { v4 as uuidv4 } from 'uuid';
-import { convertToJPEG } from '@/utils/helper';
+import { convertToJPEG, editImage } from '@/utils/helper';
 import { uploadImageHandler } from '../lib/utils';
 import { Console } from 'console';
+import { toast } from './ui/use-toast';
 // import { convertToJPEG, uploadCollection } from '@/lib/helpers';
 // import useLoading from '@/hooks/useLoading';
 
-export default function UploadSection() {
+export default function UploadSection({
+  selectedImages,
+  setSelectedImages,
+  session
+}:any) {
   const [activeTab, setActiveTab] = useState<'url' | 'upload'>('url');
   const [selectedExample, setSelectedExample] = useState<string | null>(null);
   const [urlInput, setUrlInput] = useState('');
-  const [selectedImages, setSelectedImages] = useState<
-    { img: string; img_id: string; id: string }[]
-  >([]);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   // const { setloading } = useLoading();
@@ -58,21 +60,21 @@ export default function UploadSection() {
       const convertedFile = await convertToJPEG(file) as File;
      
        const fileUrl = await uploadImageHandler(convertedFile);
-         console.log('================================fileUrl',fileUrl)
+       console.log('===========fileUrl 63',fileUrl.media.url);
       // const data = await uploadCollection(fileUrl);
       // multiItems.push({ img: fileUrl, img_id: data.data.id, id });
     }
 
-    setSelectedImages((prev) => [...prev, ...multiItems]);
+    // setSelectedImages((prev:any) => [...prev, ...multiItems]);
     // setloading(false);
   };
 
-  const handleAdd = (item:any) => {
+  const handleAdd = (item: any) => {
     const id = uuidv4();
-    setSelectedImages((prevSelectedImages) => [
-      ...prevSelectedImages,
-      { ...item, id },
-    ]);
+    const newImage = { ...item, id };
+    setSelectedImages([newImage]); // Replace previous images with new one
+    setSelectedExample(item.id); 
+    localStorage.setItem('selectedImage', JSON.stringify(selectedImages));
   };
 
   const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
@@ -102,6 +104,21 @@ export default function UploadSection() {
     if (files.length > 0) {
       handleFileUpload(files);
     }
+  };
+
+  const handleZillow = async (zillowUrl:any) => {
+    // setloading(true);
+    alert('ooooooooo')
+    const response = await editImage({ tool: "zillow-helper", url: zillowUrl },session);
+    console.log('===========response', response)
+    // setloading(false);
+    // if (response.error || !response.success) {
+    //   return toast.error(response.message);
+    // } else {
+    //   setZillowOptions(response.file);
+    //   setZillowUploadModel(true);
+    // }
+    // setZillowUrl("");
   };
 
   return (
@@ -142,7 +159,7 @@ export default function UploadSection() {
                   value={urlInput}
                   onChange={(e) => setUrlInput(e.target.value)}
                 />
-                <Button className="sm:w-auto w-full group bg-black hover:bg-black/90 text-white">
+                <Button onClick={() => handleZillow(urlInput)}className="sm:w-auto w-full group bg-black hover:bg-black/90 text-white">
                   <span>Go</span>
                   <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
                 </Button>
@@ -239,11 +256,11 @@ export default function UploadSection() {
                   Choose File
                 </Button>
               </div>
-              {selectedImages.length > 0 && (
+              {selectedImages?.length > 0 && (
                 <div className="mt-6">
                   <h3 className="text-lg font-medium mb-4">Selected Images</h3>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    {selectedImages.map((item) => (
+                    {selectedImages.map((item:any) => (
                       <div key={item.id} className="relative aspect-square rounded-lg overflow-hidden">
                         <Image
                           src={item.img}

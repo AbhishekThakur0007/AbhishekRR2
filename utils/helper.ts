@@ -1,5 +1,6 @@
 import { RealEstateAPIResponse } from '@/app/types/real-estate';
-
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+// import { cookies } from 'next/headers';
 export const processMLSPropertyResults = (propertyResults: any[]) => {
   const mappedProperties = propertyResults
     .filter((data) => {
@@ -144,5 +145,22 @@ export const fetchVstagePremiumData = async (roomInfo: any, roomTYpeID: any) => 
    if(error){
      return { sucess: false, error: error };
    }
+  }
+};
+
+export const editImage = async (args = {},session:any) => {
+  try {
+    const resp = await fetch("/api/fashion/deployment/edit/image-editor", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify(args),
+    });
+    const response = await resp.json();
+    return response;
+  } catch (error:any) {
+    return { error: true, messsage: error.message };
   }
 };

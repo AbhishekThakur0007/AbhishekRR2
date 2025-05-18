@@ -21,14 +21,15 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   images: {
-    domains: [
-      'imagecdn.realty.com',
-      'photos.zillowstatic.com',
-      'maps.googleapis.com',
-      'images.unsplash.com',
-      'plus.unsplash.com',
-      'cdn.mediamagic.dev',
-    ],
+    unoptimized: true,
+    // domains: [
+    //   'imagecdn.realty.com',
+    //   'photos.zillowstatic.com',
+    //   'maps.googleapis.com',
+    //   'images.unsplash.com',
+    //   'plus.unsplash.com',
+    //   'cdn.mediamagic.dev',
+    // ],
   },
 };
 

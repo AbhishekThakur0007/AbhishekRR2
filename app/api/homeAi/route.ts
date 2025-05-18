@@ -113,34 +113,72 @@ async function parseFormWithFormidable(req: Request): Promise<{
   });
 }
 
+// export const POST = async (req: Request) => {
+//   let response = { success: false };
+
+//   try {
+//     // Parse the multipart form data
+//     const data = await parseFormWithFormidable(req);
+//     console.log('I am reached here1234567i===============================', data);
+
+//     // Use the same session ID as original code
+//     const session = 'f0bf219d-a69e-11ed-9677-d8bbc109c436';
+
+//     // Handle filename exactly as in original code
+//     const file = (data.files.file as formidable.File[])[0];
+//     const originalFilename = file.originalFilename || '';
+//     const extension = originalFilename?.includes('.')
+//       ? originalFilename
+//       : `object-removal-${new Date().getTime()}.jpg`;
+
+//     // Create config exactly as in original code
+//     let config = {
+//       method: 'post',
+//       url: `${process.env.CM1_BASE_URL}post.php?token=${session}&file=${extension}`,
+//       data: fs.createReadStream(file.filepath),
+//     };
+
+//     // Make the API call
+//     const axiosResponse = await axios(config);
+
+//     return new Response(JSON.stringify(axiosResponse.data), {
+//       status: 200,
+//     });
+//   } catch (err) {
+//     console.error('Error in file upload:', err);
+
+//     return new Response(JSON.stringify(err), {
+//       status: 500,
+//     });
+//   }
+// };
+
 export const POST = async (req: Request) => {
   let response = { success: false };
 
   try {
-    // Parse the multipart form data
-    const data = await parseFormWithFormidable(req);
-    console.log('I am reached here1234567i===============================', data);
+    const { files } = await parseFormWithFormidable(req);
+    const file = (files.file as formidable.File[])[0]; // or `files.media` if named as 'media'
+    const fileStream = fs.createReadStream(file.filepath);
 
-    // Use the same session ID as original code
-    const session = 'f0bf219d-a69e-11ed-9677-d8bbc109c436';
+    console.log('uploaded file::::', file);
 
-    // Handle filename exactly as in original code
-    const file = (data.files.file as formidable.File[])[0];
-    const originalFilename = file.originalFilename || '';
-    const extension = originalFilename?.includes('.')
-      ? originalFilename
-      : `object-removal-${new Date().getTime()}.jpg`;
+    // Prepare FormData using form-data package (for Node.js)
+    const FormData = (await import('form-data')).default;
+    const formData = new FormData();
+    formData.append('media', fileStream, file.originalFilename!);
 
-    // Create config exactly as in original code
-    let config = {
-      method: 'post',
-      url: `${process.env.CM1_BASE_URL}post.php?token=${session}&file=${extension}`,
-      data: fs.createReadStream(file.filepath),
-    };
-
-    // Make the API call
-    const axiosResponse = await axios(config);
-
+    const axiosResponse = await axios.post(
+      'https://api-qa.mediamagic.ai/uploads/upload',
+      formData,
+      {
+        headers: {
+          ...formData.getHeaders(),
+          'x-mediamagic-key': '732f9fbb-438c-11ee-a621-7200d0d07471', // Replace with your actual key
+        },
+      },
+    );
+    console.log('axiosResponse.data::::', axiosResponse.data);
     return new Response(JSON.stringify(axiosResponse.data), {
       status: 200,
     });

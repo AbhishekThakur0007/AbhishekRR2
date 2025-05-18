@@ -21,6 +21,44 @@ export const AVATARS = [
   },
 ];
 
+export const roomstyles = [
+  {
+    label: "Modern",
+    value: "modern",
+    img: "https://cdn.mediamagic.dev/media/caaa464a-593b-11ef-a212-30d042e69440.jpeg",
+  },
+  {
+    label: "Industrial",
+    value: "industrial",
+    img: "https://cdn.mediamagic.dev/media/064675ae-5ebf-11ef-b10b-30d042e69440.jpeg",
+  },
+  {
+    label: "Midcentury",
+    value: "midcentury",
+    img: "https://cdn.mediamagic.dev/media/281ce57c-588d-11ef-95f8-30d042e69440.jpeg",
+  },
+  {
+    label: "Scandinavian",
+    value: "scandinavian",
+    img: "https://cdn.mediamagic.dev/media/24f99156-5af6-11ef-b10b-30d042e69440.jpeg",
+  },
+  {
+    label: "Luxury",
+    value: "luxury",
+    img: "https://cdn.mediamagic.dev/media/0712483a-5ebf-11ef-b10b-30d042e69440.jpeg",
+  },
+  {
+    label: "Coastal",
+    value: "coastal",
+    img: "https://cdn.mediamagic.dev/media/ae89af6d-593b-11ef-a212-30d042e69440.jpeg",
+  },
+  {
+    label: "Standard",
+    value: "standard",
+    img: "https://cdn.mediamagic.dev/media/5b58052c-58a8-11ef-95f8-30d042e69440.jpeg",
+  },
+];
+
 export const STT_LANGUAGE_LIST = [
   { label: 'Bulgarian', value: 'bg', key: 'bg' },
   { label: 'Chinese', value: 'zh', key: 'zh' },

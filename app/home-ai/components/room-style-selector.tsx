@@ -1,186 +1,458 @@
-"use client"
+'use client';
 
-import { useState, useEffect } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import RoomElements from "@/app/home-ai/components//room-elements"
-import StylePreviewCard from "@/app/home-ai/components/style-preview-card"
-import { Badge } from "@/components/ui/badge"
-import { Crown, ChevronDown, ChevronUp } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { useState, useEffect, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import RoomElements from '@/app/home-ai/components/room-elements';
+import StylePreviewCard from '@/app/home-ai/components/style-preview-card';
+import { Badge } from '@/components/ui/badge';
+import { Crown, ChevronDown, ChevronUp } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
-interface RoomStyleSelectorProps {
-  onPremiumStyleSelection?: (hasPremium: boolean) => void
+interface RoomStyle {
+  label: string;
+  Id: number;
+  img: string;
+  type: 'both' | 'premium';
+  value: string;
 }
 
-export default function RoomStyleSelector({ onPremiumStyleSelection }: RoomStyleSelectorProps) {
-  const [selectedStyles, setSelectedStyles] = useState<string[]>([])
-  const [filter, setFilter] = useState<string | null>(null)
-  const [showAllStyles, setShowAllStyles] = useState(false)
+interface RoomBundle {
+  label: string;
+  Id: number;
+  img: string;
+  type: 'both' | 'premium';
+  value: string;
+}
 
-  // Generate 12 styles for each category
-  const generateStyles = (category: string, isPremium: boolean, count: number) => {
-    return Array.from({ length: count }, (_, i) => ({
-      id: `${category}-${i + 1}`,
-      name: `${category.charAt(0).toUpperCase() + category.slice(1)} Style ${i + 1}`,
-      image: "/placeholder.svg?height=200&width=300",
-      isPremium,
-      category,
-    }))
-  }
+interface BundleItem {
+  Id: number;
+  value: string;
+  type: 'premium' | 'regular';
+}
 
-  const popularStyles = generateStyles("popular", false, 12)
-  const trendingStyles = generateStyles("trending", false, 12)
-  const premiumStyles = generateStyles("premium", true, 12)
+interface ImageItem {
+  id: string;
+  img?: string;
+  image?: string;
+  name?: string;
+  img_id?: string;
+  roomType?: {
+    Id: string;
+    value: string;
+    type: string;
+  };
+  roomStyle?: BundleItem[];
+  roomBundle?: BundleItem[];
+}
 
-  // Combine all styles
-  const allStyles = [...popularStyles, ...premiumStyles, ...trendingStyles]
+interface RoomStyleSelectorProps {
+  roomStyles: RoomStyle[];
+  roomBundles: RoomBundle[];
+  onPremiumStyleSelection?: (hasPremium: boolean) => void;
+  updateSelectedImage: (id: string, data: Partial<ImageItem>) => void;
+  selectedImages: ImageItem[];
+}
 
-  // Filter styles based on selected category
-  const filteredStyles = filter ? allStyles.filter((style) => style.category === filter) : allStyles
+export default function RoomStyleSelector({
+  roomStyles,
+  roomBundles,
+  onPremiumStyleSelection,
+  updateSelectedImage,
+  selectedImages,
+}: RoomStyleSelectorProps) {
+  const [selectedStyleIds, setSelectedStyleIds] = useState<string[]>([]);
+  const [selectedBundleIds, setSelectedBundleIds] = useState<string[]>([]);
+  const [styleFilter, setStyleFilter] = useState<string | null>(null);
+  const [bundleFilter, setBundleFilter] = useState<string | null>(null);
+  const [showAllStyles, setShowAllStyles] = useState(false);
+  const [showAllBundles, setShowAllBundles] = useState(false);
 
-  // Limit displayed styles unless "show all" is clicked
-  const displayedStyles = showAllStyles ? filteredStyles : filteredStyles.slice(0, 8)
+  // Map roomStyles to StylePreviewCard format
+  const allStyles = useMemo(
+    () =>
+      roomStyles.map((style) => ({
+        id: style.Id.toString(),
+        name: style.label,
+        image: style.img || '/placeholder.svg?height=200&width=300',
+        isPremium: style.type === 'premium',
+        category: style.type === 'premium' ? 'premium' : 'popular',
+      })),
+    [roomStyles],
+  );
+
+  // Map roomBundles to StylePreviewCard format
+  const allBundles = useMemo(
+    () =>
+      roomBundles.map((bundle) => ({
+        id: bundle.Id.toString(),
+        name: bundle.label,
+        image: bundle.img || '/placeholder.svg?height=200&width=300',
+        isPremium: bundle.type === 'premium',
+        category: bundle.type === 'premium' ? 'premium' : 'popular',
+      })),
+    [roomBundles],
+  );
+
+  // Style filtering
+  const filteredStyles = styleFilter ? allStyles.filter((style) => style.category === styleFilter) : allStyles;
+  const displayedStyles = showAllStyles ? filteredStyles : filteredStyles.slice(0, 8);
+  const hasMoreStyles = filteredStyles.length > displayedStyles.length;
+
+  // Bundle filtering
+  const filteredBundles = bundleFilter ? allBundles.filter((bundle) => bundle.category === bundleFilter) : allBundles;
+  const displayedBundles = showAllBundles ? filteredBundles : filteredBundles.slice(0, 8);
+  const hasMoreBundles = filteredBundles.length > displayedBundles.length;
+
+  // Sync selected styles with selectedImages.roomStyle
+  useEffect(() => {
+    if (selectedImages?.length > 0 && Array.isArray(selectedImages[0]?.roomStyle)) {
+      const currentStyleIds = selectedImages[0].roomStyle.map((style: BundleItem) => style.Id.toString());
+      setSelectedStyleIds(currentStyleIds);
+    } else {
+      setSelectedStyleIds([]);
+    }
+  }, [selectedImages]);
+
+  // Sync selected bundles with selectedImages.roomBundle
+  useEffect(() => {
+    if (selectedImages?.length > 0 && Array.isArray(selectedImages[0]?.roomBundle)) {
+      const currentBundleIds = selectedImages[0].roomBundle.map((bundle: BundleItem) => bundle.Id.toString());
+      setSelectedBundleIds(currentBundleIds);
+    } else {
+      setSelectedBundleIds([]);
+    }
+  }, [selectedImages]);
 
   // Check if any selected style is premium
-  const selectedStylesData = allStyles.filter((style) => selectedStyles.includes(style.id))
-  const isPremiumSelected = selectedStylesData.some((style) => style.isPremium)
+  const selectedStylesData = allStyles.filter((style) => selectedStyleIds.includes(style.id));
+  const isPremiumStyleSelected = selectedStylesData.some((style) => style.isPremium);
+
+  // Check if any selected style or bundle is premium for RoomElements
+  const selectedBundlesData = allBundles.filter((bundle) => selectedBundleIds.includes(bundle.id));
+  const isPremiumSelected =
+    selectedStylesData.some((style) => style.isPremium) || selectedBundlesData.some((bundle) => bundle.isPremium);
 
   // Notify parent component when premium selection changes
   useEffect(() => {
     if (onPremiumStyleSelection) {
-      onPremiumStyleSelection(isPremiumSelected)
+      onPremiumStyleSelection(isPremiumSelected);
     }
-  }, [isPremiumSelected, onPremiumStyleSelection])
+  }, [isPremiumSelected, onPremiumStyleSelection]);
 
-  // Ensure premium styles are always visible in the initial view
+  // Update selectedImages.roomStyle
+  const updateRoomStyles = (newStyleIds: string[]) => {
+    if (selectedImages.length === 0) return;
+
+    const newRoomStyles = newStyleIds
+      .map((id) => {
+        const style = allStyles.find((s) => s.id === id);
+        return style
+          ? {
+              Id: parseInt(style.id),
+              value: style.name,
+              type: style.isPremium ? 'premium' : 'regular',
+            }
+          : null;
+      })
+      .filter((s) => s !== null) as BundleItem[];
+
+    updateSelectedImage(selectedImages[0].id, {
+      roomStyle: newRoomStyles,
+    });
+  };
+
+  // Update selectedImages.roomBundle
+  const updateRoomBundles = (newBundleIds: string[]) => {
+    if (selectedImages.length === 0) return;
+
+    const newRoomBundles = newBundleIds
+      .map((id) => {
+        const bundle = allBundles.find((b) => b.id === id);
+        return bundle
+          ? {
+              Id: parseInt(bundle.id),
+              value: bundle.name,
+              type: bundle.isPremium ? 'premium' : 'regular',
+            }
+          : null;
+      })
+      .filter((b) => b !== null) as BundleItem[];
+
+    updateSelectedImage(selectedImages[0].id, {
+      roomBundle: newRoomBundles,
+    });
+  };
+
+  // Handle style selection
+  const handleStyleSelect = (styleId: string) => {
+    let newStyleIds: string[];
+    if (selectedStyleIds.includes(styleId)) {
+      newStyleIds = selectedStyleIds.filter((id) => id !== styleId);
+    } else {
+      newStyleIds = [...selectedStyleIds, styleId];
+    }
+    setSelectedStyleIds(newStyleIds);
+    updateRoomStyles(newStyleIds);
+  };
+
+  // Handle bundle selection (only if premium style is selected)
+  const handleBundleSelect = (bundleId: string) => {
+    if (!isPremiumStyleSelected) return; // Prevent selection if no premium style
+
+    let newBundleIds: string[];
+    if (selectedBundleIds.includes(bundleId)) {
+      newBundleIds = selectedBundleIds.filter((id) => id !== bundleId);
+    } else {
+      newBundleIds = [...selectedBundleIds, bundleId];
+    }
+    setSelectedBundleIds(newBundleIds);
+    updateRoomBundles(newBundleIds);
+  };
+
+  // Ensure premium styles are visible in the initial view
   const initialDisplayStyles = () => {
-    if (filter) return displayedStyles
-
-    // When showing all styles without a filter, ensure at least 2 premium styles are visible
-    const nonPremiumStyles = displayedStyles.filter((style) => !style.isPremium)
-    const premiumStylesToShow = premiumStyles.slice(0, 2)
-
-    // If we're not showing all styles, ensure premium styles are included in the initial view
+    if (styleFilter) return displayedStyles;
+    const nonPremiumStyles = displayedStyles.filter((style) => !style.isPremium);
+    const premiumStylesToShow = allStyles.filter((style) => style.isPremium).slice(0, 2);
     if (!showAllStyles) {
-      return [...nonPremiumStyles.slice(0, 6), ...premiumStylesToShow]
+      return [...nonPremiumStyles.slice(0, 6), ...premiumStylesToShow];
     }
+    return displayedStyles;
+  };
 
-    return displayedStyles
-  }
+  // Ensure premium bundles are visible in the initial view
+  const initialDisplayBundles = () => {
+    if (bundleFilter) return displayedBundles;
+    const nonPremiumBundles = displayedBundles.filter((bundle) => !bundle.isPremium);
+    const premiumBundlesToShow = allBundles.filter((bundle) => bundle.isPremium).slice(0, 2);
+    if (!showAllBundles) {
+      return [...nonPremiumBundles.slice(0, 6), ...premiumBundlesToShow];
+    }
+    return displayedBundles;
+  };
 
-  const visibleStyles = filter === "premium" ? displayedStyles : initialDisplayStyles()
-  const hasMoreStyles = filteredStyles.length > displayedStyles.length
+  const visibleStyles = styleFilter === 'premium' ? displayedStyles : initialDisplayStyles();
+  const visibleBundles = bundleFilter === 'premium' ? displayedBundles : initialDisplayBundles();
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-          <Badge
-            variant={filter === null ? "default" : "outline"}
-            className="cursor-pointer backdrop-blur-sm"
-            onClick={() => setFilter(null)}
-          >
-            All Styles
-          </Badge>
-          <Badge
-            variant={filter === "popular" ? "default" : "outline"}
-            className="cursor-pointer backdrop-blur-sm"
-            onClick={() => setFilter("popular")}
-          >
-            Popular
-          </Badge>
-          <Badge
-            variant={filter === "trending" ? "default" : "outline"}
-            className="cursor-pointer backdrop-blur-sm"
-            onClick={() => setFilter("trending")}
-          >
-            Trending
-          </Badge>
-          <Badge
-            variant={filter === "premium" ? "default" : "outline"}
-            className="cursor-pointer bg-gradient-to-r from-purple-600 to-red-600 hover:from-purple-700 hover:to-red-700 text-white backdrop-blur-sm"
-            onClick={() => setFilter("premium")}
-          >
-            <Crown className="h-3 w-3 mr-1" /> Premium
-          </Badge>
+    <div className="space-y-12">
+      {/* Room Styles Section */}
+      <div className="space-y-8">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+            <Badge
+              variant={styleFilter === null ? 'default' : 'outline'}
+              className="cursor-pointer backdrop-blur-sm"
+              onClick={() => setStyleFilter(null)}
+            >
+              All Styles
+            </Badge>
+            <Badge
+              variant={styleFilter === 'popular' ? 'default' : 'outline'}
+              className="cursor-pointer backdrop-blur-sm"
+              onClick={() => setStyleFilter('popular')}
+            >
+              Popular
+            </Badge>
+            <Badge
+              variant={styleFilter === 'premium' ? 'default' : 'outline'}
+              className="cursor-pointer bg-gradient-to-r from-purple-600 to-red-600 hover:from-purple-700 hover:to-red-700 text-white backdrop-blur-sm"
+              onClick={() => setStyleFilter('premium')}
+            >
+              <Crown className="h-3 w-3 mr-1" /> Premium
+            </Badge>
+          </div>
         </div>
-      </div>
 
-      {/* Selected styles count */}
-      {selectedStyles.length > 0 && (
-        <div className="flex items-center justify-between mb-4 p-3 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm rounded-lg border border-white/20 dark:border-slate-800/50">
-          <div className="flex items-center gap-2">
-            <div className="bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-400 w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium">
-              {selectedStyles.length}
+        {selectedStyleIds.length > 0 && (
+          <div className="flex items-center justify-between mb-4 p-3 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm rounded-lg border border-white/20 dark:border-slate-800/50">
+            <div className="flex items-center gap-2">
+              <div className="bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-400 w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium">
+                {selectedStyleIds.length}
+              </div>
+              <span className="text-sm font-medium">
+                {selectedStyleIds.length === 1 ? 'Style' : 'Styles'} selected
+              </span>
             </div>
-            <span className="text-sm font-medium">{selectedStyles.length === 1 ? "Style" : "Styles"} selected</span>
+            <button
+              onClick={() => {
+                setSelectedStyleIds([]);
+                updateRoomStyles([]);
+              }}
+              className="text-xs text-muted-foreground hover:text-foreground bg-slate-100/50 dark:bg-slate-800/50 px-2 py-1 rounded-md"
+            >
+              Clear all
+            </button>
           </div>
-          <button
-            onClick={() => setSelectedStyles([])}
-            className="text-xs text-muted-foreground hover:text-foreground bg-slate-100/50 dark:bg-slate-800/50 px-2 py-1 rounded-md"
-          >
-            Clear all
-          </button>
-        </div>
-      )}
+        )}
 
-      {/* Premium Styles Banner - Always visible unless filtering for non-premium */}
-      {(filter === null || filter === "premium") && (
-        <div className="bg-gradient-to-r from-purple-50/80 to-red-50/80 dark:from-purple-950/30 dark:to-red-950/20 backdrop-blur-sm rounded-lg p-4 mb-6 border border-purple-200/50 dark:border-purple-800/30">
-          <div className="flex items-center gap-2 mb-2">
-            <Crown className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-            <h3 className="font-semibold text-purple-800 dark:text-purple-400">Premium Styles</h3>
+        {(styleFilter === null || styleFilter === 'premium') && (
+          <div className="bg-gradient-to-r from-purple-50/80 to-red-50/80 dark:from-purple-950/30 dark:to-red-950/20 backdrop-blur-sm rounded-lg p-4 mb-6 border border-purple-200/50 dark:border-purple-800/30">
+            <div className="flex items-center gap-2 mb-2">
+              <Crown className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+              <h3 className="font-semibold text-purple-800 dark:text-purple-400">Premium Styles</h3>
+            </div>
+            <p className="text-sm text-purple-700 dark:text-purple-300">
+              Unlock premium styles for stunning, professional-quality room transformations with exclusive design
+              elements.
+            </p>
           </div>
-          <p className="text-sm text-purple-700 dark:text-purple-300">
-            Unlock premium styles for stunning, professional-quality room transformations with exclusive design
-            elements.
-          </p>
-        </div>
-      )}
+        )}
 
-      <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-4 gap-4">
-        {visibleStyles.map((style) => (
-          <StylePreviewCard
-            key={style.id}
-            style={style}
-            isSelected={selectedStyles.includes(style.id)}
-            onSelect={() => {
-              if (selectedStyles.includes(style.id)) {
-                // Remove style if already selected
-                setSelectedStyles(selectedStyles.filter((id) => id !== style.id))
-              } else {
-                // Add style to selection
-                setSelectedStyles([...selectedStyles, style.id])
-              }
-            }}
-          />
-        ))}
+        <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-4 gap-4">
+          {visibleStyles.map((style) => (
+            <StylePreviewCard
+              key={style.id}
+              style={style}
+              isSelected={selectedStyleIds.includes(style.id)}
+              onSelect={() => handleStyleSelect(style.id)}
+            />
+          ))}
+        </div>
+
+        {hasMoreStyles || showAllStyles ? (
+          <div className="flex justify-center mt-6">
+            <Button
+              variant="outline"
+              onClick={() => setShowAllStyles(!showAllStyles)}
+              className="group bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm"
+            >
+              {showAllStyles ? (
+                <>
+                  Show Less
+                  <ChevronUp className="ml-2 h-4 w-4 group-hover:-translate-y-0.5 transition-transform" />
+                </>
+              ) : (
+                <>
+                  Show More Styles
+                  <ChevronDown className="ml-2 h-4 w-4 group-hover:translate-y-0.5 transition-transform" />
+                </>
+              )}
+            </Button>
+          </div>
+        ) : null}
       </div>
 
-      {/* Show more/less button */}
-      {hasMoreStyles || showAllStyles ? (
-        <div className="flex justify-center mt-6">
-          <Button
-            variant="outline"
-            onClick={() => setShowAllStyles(!showAllStyles)}
-            className="group bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm"
-          >
-            {showAllStyles ? (
-              <>
-                Show Less
-                <ChevronUp className="ml-2 h-4 w-4 group-hover:-translate-y-0.5 transition-transform" />
-              </>
-            ) : (
-              <>
-                Show More Styles
-                <ChevronDown className="ml-2 h-4 w-4 group-hover:translate-y-0.5 transition-transform" />
-              </>
-            )}
-          </Button>
+      {/* Room Bundles Section */}
+      <div className="space-y-8 border-t pt-8">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold">Room Bundles</h2>
+          {!isPremiumStyleSelected && (
+            <span className="text-xs text-muted-foreground bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm px-2 py-1 rounded-full">
+              Select a premium style to enable bundles
+            </span>
+          )}
         </div>
-      ) : null}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+            <Badge
+              variant={bundleFilter === null ? 'default' : 'outline'}
+              className={`cursor-pointer backdrop-blur-sm ${!isPremiumStyleSelected ? 'opacity-50 cursor-not-allowed' : ''}`}
+              onClick={() => isPremiumStyleSelected && setBundleFilter(null)}
+            >
+              All Bundles
+            </Badge>
+            <Badge
+              variant={bundleFilter === 'popular' ? 'default' : 'outline'}
+              className={`cursor-pointer backdrop-blur-sm ${!isPremiumStyleSelected ? 'opacity-50 cursor-not-allowed' : ''}`}
+              onClick={() => isPremiumStyleSelected && setBundleFilter('popular')}
+            >
+              Popular
+            </Badge>
+            <Badge
+              variant={bundleFilter === 'premium' ? 'default' : 'outline'}
+              className={`cursor-pointer bg-gradient-to-r from-purple-600 to-red-600 hover:from-purple-700 hover:to-red-700 text-white backdrop-blur-sm ${!isPremiumStyleSelected ? 'opacity-50 cursor-not-allowed' : ''}`}
+              onClick={() => isPremiumStyleSelected && setBundleFilter('premium')}
+            >
+              <Crown className="h-3 w-3 mr-1" /> Premium
+            </Badge>
+          </div>
+        </div>
 
-      {/* Room Elements section - only shown for premium styles */}
+        {selectedBundleIds.length > 0 && (
+          <div className="flex items-center justify-between mb-4 p-3 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm rounded-lg border border-white/20 dark:border-slate-800/50">
+            <div className="flex items-center gap-2">
+              <div className="bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-400 w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium">
+                {selectedBundleIds.length}
+              </div>
+              <span className="text-sm font-medium">
+                {selectedBundleIds.length === 1 ? 'Bundle' : 'Bundles'} selected
+              </span>
+            </div>
+            <button
+              onClick={() => {
+                setSelectedBundleIds([]);
+                updateRoomBundles([]);
+              }}
+              className="text-xs text-muted-foreground hover:text-foreground bg-slate-100/50 dark:bg-slate-800/50 px-2 py-1 rounded-md"
+            >
+              Clear all
+            </button>
+          </div>
+        )}
+
+        {(bundleFilter === null || bundleFilter === 'premium') && (
+          <div className="bg-gradient-to-r from-purple-50/80 to-red-50/80 dark:from-purple-950/30 dark:to-red-950/20 backdrop-blur-sm rounded-lg p-4 mb-6 border border-purple-200/50 dark:border-purple-800/30">
+            <div className="flex items-center gap-2 mb-2">
+              <Crown className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+              <h3 className="font-semibold text-purple-800 dark:text-purple-400">Premium Bundles</h3>
+            </div>
+            <p className="text-sm text-purple-700 dark:text-purple-300">
+              Unlock premium bundles for curated collections of furniture and decor to transform your space.
+            </p>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-4 gap-4">
+          {visibleBundles.map((bundle) => (
+            <TooltipProvider key={bundle.id}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className={`${!isPremiumStyleSelected ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                    <StylePreviewCard
+                      style={bundle}
+                      isSelected={selectedBundleIds.includes(bundle.id)}
+                      onSelect={() => handleBundleSelect(bundle.id)}
+                      disabled={!isPremiumStyleSelected}
+                    />
+                  </div>
+                </TooltipTrigger>
+                {!isPremiumStyleSelected && (
+                  <TooltipContent>
+                    <p>Select a premium style to enable bundle selection</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
+          ))}
+        </div>
+
+        {hasMoreBundles || showAllBundles ? (
+          <div className="flex justify-center mt-6">
+            <Button
+              variant="outline"
+              onClick={() => isPremiumStyleSelected && setShowAllBundles(!showAllBundles)}
+              className={`group bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm ${!isPremiumStyleSelected ? 'opacity-50 cursor-not-allowed' : ''}`}
+              disabled={!isPremiumStyleSelected}
+            >
+              {showAllBundles ? (
+                <>
+                  Show Less
+                  <ChevronUp className="ml-2 h-4 w-4 group-hover:-translate-y-0.5 transition-transform" />
+                </>
+              ) : (
+                <>
+                  Show More Bundles
+                  <ChevronDown className="ml-2 h-4 w-4 group-hover:translate-y-0.5 transition-transform" />
+                </>
+              )}
+            </Button>
+          </div>
+        ) : null}
+      </div>
+
+      {/* Room Elements for Premium Selection */}
       <AnimatePresence>
         {isPremiumSelected && (
           <motion.div
@@ -190,10 +462,12 @@ export default function RoomStyleSelector({ onPremiumStyleSelection }: RoomStyle
             transition={{ duration: 0.3 }}
             className="border-t pt-8 mt-8"
           >
-            <RoomElements styleName={selectedStylesData[0]?.name || ""} />
+            <RoomElements
+              styleName={selectedStylesData[0]?.name || selectedBundlesData[0]?.name || ''}
+            />
           </motion.div>
         )}
       </AnimatePresence>
     </div>
-  )
+  );
 }
